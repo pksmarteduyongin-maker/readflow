@@ -1,1 +1,482 @@
-<!DOCTYPE html> <html lang="ko"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <title>ReadFlow Tablet Academy - 수능 영어 독해 & 스크램블</title> <link rel="manifest" href="/manifest.json"> <meta name="apple-mobile-web-app-capable" content="yes"> <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> <meta name="theme-color" content="#4338ca"> <script src="https://cdn.tailwindcss.com"></script> <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" /> <style> body { font-family: "Pretendard Variable", Pretendard, sans-serif; -webkit-tap-highlight-color: transparent; } .chunk-chip { touch-action: manipulation; } </style> </head> <body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col select-none"> <!-- 상단 네비게이션 헤더 --> <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm px-6 py-3 flex items-center justify-between"> <div class="flex items-center space-x-3"> <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md font-bold text-lg"> 📖 </div> <div> <div class="flex items-center space-x-2"> <span class="font-extrabold text-xl tracking-tight text-indigo-950">ReadFlow</span> <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">TABLET ACADEMY</span> </div> <p class="text-[11px] text-slate-400 font-medium">수능특강·모의고사 구문분석 & 스크램블 훈련</p> </div> </div> <!-- 상단 탭 전환 --> <nav class="flex items-center bg-slate-100 p-1 rounded-xl"> <button onclick="switchTab('passage')" id="tab-passage" class="px-4 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition">지문 분석실</button> <button onclick="switchTab('scramble')" id="tab-scramble" class="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-900 transition">스크램블 훈련</button> <button onclick="switchTab('quiz')" id="tab-quiz" class="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-900 transition">실전 퀴즈</button> </nav> <!-- 우측 설정 & 키 관리 --> <div class="flex items-center space-x-3"> <button onclick="openSettingsModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 transition"> <span>🔑</span> <span id="api-status-badge">API 키 설정</span> </button> <div class="flex items-center space-x-2 pl-2 border-l border-slate-200"> <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">고3</div> <div class="hidden md:block text-left text-xs"> <p class="font-bold text-slate-800">김도현 학생</p> <p class="text-[10px] text-slate-400">수능 정규 대비반</p> </div> </div> </div> </header> <!-- 메인 학습 뷰 컨테이너 --> <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6"> <!-- [탭 1] 지문 분석실 (2분할 스플릿 뷰) --> <section id="view-passage" class="grid grid-cols-1 lg:grid-cols-12 gap-6"> <!-- 좌측: 지문 입력 --> <div class="lg:col-span-5 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col"> <div class="flex items-center justify-between mb-4"> <div class="flex items-center space-x-2"> <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span> <h2 class="font-bold text-lg text-slate-800">영어 지문 입력</h2> </div> <button type="button" onclick="loadSamplePassage()" class="text-xs font-bold text-indigo-600 hover:underline cursor-pointer bg-indigo-50 px-2.5 py-1 rounded-lg">수능특강 샘플 불러오기</button> </div> <textarea id="passage-input" rows="8" placeholder="분석할 고교 영어 지문을 이곳에 입력하세요..." class="w-full p-4 rounded-xl border border-slate-200 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none font-sans"></textarea> <button id="btn-analyze" onclick="handleAnalyzePassage()" class="mt-4 w-full py-3.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md flex items-center justify-center space-x-2 transition cursor-pointer"> <span>✨ Gemini AI 정밀 분석 시작</span> </button> <div id="analyze-loader" class="hidden mt-4 p-4 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center space-x-3 text-indigo-700 text-xs font-semibold"> <div class="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div> <span>AI가 지문의 구문과 핵심 논리 흐름을 정밀 분석하고 있습니다...</span> </div> </div> <!-- 우측: AI 분석 결과 및 문장별 직독직해 --> <div class="lg:col-span-7 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col"> <h2 class="font-bold text-lg text-slate-800 mb-4 flex items-center justify-between"> <span>AI 지문 구조화 리포트</span> <span id="passage-badge" class="text-xs px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full font-semibold">준비 완료</span> </h2> <!-- 논리 흐름 & 요약 카드 --> <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-5"> <p class="text-xs font-bold text-indigo-700 uppercase mb-1">Passage Summary (핵심 요약)</p> <p id="summary-text" class="text-sm text-slate-700 leading-relaxed font-medium">지문을 입력하고 분석 버튼을 누르면 AI가 요약과 논리 전개를 생성합니다.</p> </div> <!-- 문장별 구조 분해 목록 --> <div class="flex-1 overflow-y-auto max-h-[460px] pr-2 space-y-3" id="sentences-container"> <div class="p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-sm py-12"> 지문을 입력하시면 문장별 구문 쪼개기와 스크램블 청크가 자동 표시됩니다. </div> </div> </div> </section> <!-- [탭 2] 문장별 단어 스크램블 훈련 센터 --> <section id="view-scramble" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6"> <div class="lg:col-span-8 space-y-5"> <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200"> <div class="flex items-center justify-between mb-3"> <span id="scramble-step" class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">Step 01 / 05</span> <div class="text-xs font-mono font-bold text-slate-500">⏱️ 00:24</div> </div> <p id="scramble-ko" class="text-base font-semibold text-slate-900 leading-relaxed"> "그러나, 이러한 정신적 지름길(휴리스틱)은 우리로 하여금 감추어진 잘못된 정보에 매우 취약하게 만든다." </p> </div> <!-- 오답 경고 배너 --> <div id="error-alert-banner" class="hidden bg-rose-50 border-2 border-rose-500 rounded-2xl p-4 text-rose-900 flex items-start space-x-3 transition"> <div class="text-xl">⚠️</div> <div class="flex-1"> <h4 class="font-bold text-sm">어순 배열 오류가 감지되었습니다!</h4> <p id="error-alert-msg" class="text-xs text-rose-700 mt-0.5">5형식 목적격 보어 자리에는 부사가 올 수 없습니다. 형용사 청크를 선택하세요.</p> </div> <button onclick="resetAssembly()" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700">다시 조립</button> </div> <!-- 조립 트랙 --> <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200"> <div class="flex items-center justify-between mb-3"> <span class="text-xs font-bold text-slate-500">현재 조립된 문장 청크 트랙</span> <span class="text-xs text-slate-400">카드를 탭하면 보관함으로 회수됩니다</span> </div> <div id="assembly-track" class="min-h-[76px] p-3 rounded-xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-wrap gap-2 items-center"></div> </div> <!-- 후보 단어 청크 풀 --> <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200"> <div class="flex items-center justify-between mb-3"> <span class="text-xs font-bold text-slate-700">터치하여 조립할 단어 청크 (Candidate Pool)</span> <button onclick="shuffleChunks()" class="text-xs font-semibold text-indigo-600 hover:underline">🔀 단어 섞기</button> </div> <div id="candidate-pool" class="flex flex-wrap gap-2.5 pt-2"></div> </div> <div class="flex items-center justify-between pt-2"> <button onclick="resetAssembly()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition"> 처음부터 재배치 </button> <button onclick="verifyScrambleAnswer()" class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition"> 정답 검증 & 다음 문장 ➔ </button> </div> </div> <!-- 우측 클리닉 --> <div class="lg:col-span-4 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col space-y-4"> <div class="flex items-center justify-between pb-3 border-b border-slate-100"> <h3 class="font-bold text-sm text-slate-800">📊 실시간 구문 첨삭 클리닉</h3> <span id="clinic-score-badge" class="px-2 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-600">정상 진행</span> </div> <div class="space-y-3 text-xs leading-relaxed"> <div class="p-3 bg-slate-50 rounded-xl border border-slate-100"> <p class="font-bold text-indigo-900 mb-1">📘 수능 빈출 어법 포인트</p> <p class="text-slate-600">동사 <code class="bg-indigo-100 px-1 py-0.5 rounded text-indigo-800 font-bold">make</code>는 5형식 문형에서 목적어의 상태를 설명하는 보어로 <span class="text-rose-600 font-bold">부사가 올 수 없으며</span> 형용사 보어만을 취합니다.</p> </div> <div class="p-3 bg-emerald-50/60 rounded-xl border border-emerald-100 text-emerald-950"> <p class="font-bold mb-1">✅ 정답 구문 예시</p> <p class="font-mono text-[11px] text-emerald-800">makes us <span class="font-bold underline decoration-emerald-500">vulnerable to</span> subtle misinformation.</p> </div> </div> <button onclick="showScrambleHint()" class="mt-auto w-full py-2.5 border border-dashed border-indigo-200 text-indigo-600 rounded-xl text-xs font-bold hover:bg-indigo-50 transition"> 💡 구조 단서 힌트 보기 </button> </div> </section> <!-- [탭 3] 실전 이해도 퀴즈 --> <section id="view-quiz" class="hidden max-w-3xl mx-auto space-y-6"> <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200"> <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100"> <div class="flex items-center space-x-2"> <span class="w-7 h-7 rounded-lg bg-indigo-600 text-white font-extrabold text-xs flex items-center justify-center">Q1</span> <span class="font-bold text-sm text-slate-700">핵심 빈칸 추론 & 문맥 이해</span> </div> <span class="text-xs font-bold text-slate-400">문제 1 / 4</span> </div> <h3 id="quiz-question" class="text-base font-bold text-slate-900 leading-relaxed mb-6"> 위 지문의 논리적 흐름으로 보아, 글쓴이가 지적하는 인간 인지 휴리스틱의 가장 심각한 부작용은 무엇인가? </h3> <div id="quiz-options" class="space-y-3"></div> <div id="quiz-explanation" class="hidden mt-6 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs leading-relaxed text-slate-700"></div> <div class="mt-6 flex justify-end"> <button onclick="nextQuizItem()" id="btn-quiz-next" class="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs hover:bg-indigo-700 transition"> 다음 문제 풀기 </button> </div> </div> </section> </main> <!-- API 키 모달 --> <div id="api-modal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4"> <div class="bg-white max-w-md w-full rounded-2xl p-6 shadow-2xl border border-slate-100"> <div class="flex items-center justify-between mb-4"> <h3 class="font-bold text-base text-slate-900 flex items-center space-x-2"> <span>🔑 Google Gemini API 키 입력</span> </h3> <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button> </div> <p class="text-xs text-slate-500 mb-4 leading-relaxed"> Google AI Studio에서 발급받으신 무료 키(AQ... 또는 AIzaSy...)를 입력해 주세요. 이 기기 브라우저에만 안전하게 보관됩니다. </p> <input type="password" id="input-api-key" placeholder="AQ... 또는 AIzaSy..." class="w-full p-3 rounded-xl border border-slate-200 text-sm font-mono mb-4 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"> <div class="flex items-center justify-end space-x-2"> <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50">닫기</button> <button onclick="saveApiKey()" class="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700">저장하기</button> </div> </div> </div> <script> // 샘플 지문 텍스트 const SAMPLE_PASSAGE = "However, this mental shortcut makes us exceptionally vulnerable to subtle misinformation disguised in simple words. When cognitive fluency is high, the human brain mistakenly equates ease of processing with truthfulness, bypassing critical verification systems. Consequently, learners accept assertions without interrogating their underlying premises."; const SAMPLE_CHUNKS = [ { id: 1, text: "However,", correctIdx: 0 }, { id: 2, text: "this mental shortcut", correctIdx: 1 }, { id: 3, text: "makes us", correctIdx: 2 }, { id: 4, text: "exceptionally vulnerable to", correctIdx: 3 }, { id: 5, text: "subtle misinformation", correctIdx: 4 }, { id: 6, text: "disguised in simple words.", correctIdx: 5 }, { id: 7, text: "exceptionally vulnerably", isTrap: true, trapNote: "5형식 목적격 보어 자리에는 부사가 올 수 없습니다. 형용사 청크를 선택하세요." } ]; let currentAssembled = []; let currentCandidates = [...SAMPLE_CHUNKS]; // [핵심] 수능특강 샘플 불러오기 함수 function loadSamplePassage() { const inputEl = document.getElementById('passage-input'); if (inputEl) { inputEl.value = SAMPLE_PASSAGE; inputEl.focus(); } } function switchTab(tab) { ['passage', 'scramble', 'quiz'].forEach(t => { const v = document.getElementById('view-' + t); const b = document.getElementById('tab-' + t); if (v) v.classList.add('hidden'); if (b) b.className = "px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-900 transition"; }); const activeV = document.getElementById('view-' + tab); const activeB = document.getElementById('tab-' + tab); if (activeV) activeV.classList.remove('hidden'); if (activeB) activeB.className = "px-4 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition"; } function checkSavedApiKey() { const key = localStorage.getItem('rf_gemini_key'); const badge = document.getElementById('api-status-badge'); if (badge) { if (key) { badge.innerText = "API 키 연동됨"; badge.classList.add('text-emerald-600'); } else { badge.innerText = "API 키 설정"; } } } function openSettingsModal() { document.getElementById('input-api-key').value = localStorage.getItem('rf_gemini_key') || ''; document.getElementById('api-modal').classList.remove('hidden'); } function closeSettingsModal() { document.getElementById('api-modal').classList.add('hidden'); } function saveApiKey() { const val = document.getElementById('input-api-key').value.trim(); if (val) { localStorage.setItem('rf_gemini_key', val); alert('API 키가 안전하게 저장되었습니다!'); } else { localStorage.removeItem('rf_gemini_key'); } checkSavedApiKey(); closeSettingsModal(); } async function handleAnalyzePassage() { const text = document.getElementById('passage-input').value.trim(); if (!text) return alert('분석할 영어 지문을 입력해 주세요!'); const apiKey = localStorage.getItem('rf_gemini_key'); const loader = document.getElementById('analyze-loader'); const btn = document.getElementById('btn-analyze'); loader.classList.remove('hidden'); btn.disabled = true; // API 키가 없거나 테스트용일 때 즉각 시연 if (!apiKey) { setTimeout(() => { renderAnalysisResult({ summary: "인지적 유창성(쉬운 처리)에 대한 뇌의 맹신이 거짓 정보를 무비판적으로 수용하게 만드는 메커니즘 분석", sentences: [ { en: "However, this mental shortcut makes us exceptionally vulnerable to subtle misinformation.", ko: "그러나 이러한 정신적 지름길은 우리를 감추어진 잘못된 정보에 매우 취약하게 만든다." }, { en: "When cognitive fluency is high, the brain mistakenly equates ease of processing with truthfulness.", ko: "인지적 유창성이 높을 때 뇌는 처리의 용이성을 진실성과 잘못 동일시한다." } ] }); loader.classList.add('hidden'); btn.disabled = false; }, 800); return; } // Gemini AI 실제 호출 try { const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`; const prompt = `수능 영어 지문을 분석해서 오직 순수 JSON(코드블록 없이)으로만 응답해줘. 지문: "${text}" JSON 구조: { "summary": "한국어 핵심 요약 (2~3문장)", "sentences": [ {"en": "영어문장", "ko": "문장별 직독직해"} ] }`; const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) }); const data = await res.json(); const rawText = data.candidates[0].content.parts[0].text; const cleaned = rawText.replace(/```json|```/g, '').trim(); const parsed = JSON.parse(cleaned); renderAnalysisResult(parsed); } catch (err) { console.error(err); alert('AI 분석 중 오류가 발생했습니다. 키를 다시 확인해 주세요. 기본 템플릿으로 표시합니다.'); renderAnalysisResult({ summary: "인지적 유창성(쉬운 처리)에 대한 뇌의 맹신이 거짓 정보를 무비판적으로 수용하게 만드는 메커니즘 분석", sentences: [ { en: "However, this mental shortcut makes us exceptionally vulnerable to subtle misinformation.", ko: "그러나 이러한 정신적 지름길은 우리를 감추어진 잘못된 정보에 매우 취약하게 만든다." } ] }); } finally { loader.classList.add('hidden'); btn.disabled = false; } } function renderAnalysisResult(data) { document.getElementById('summary-text').innerText = data.summary; const container = document.getElementById('sentences-container'); container.innerHTML = ''; data.sentences.forEach((s, idx) => { const item = document.createElement('div'); item.className = "p-3.5 rounded-xl border border-slate-100 hover:border-indigo-200 bg-white transition space-y-1.5"; item.innerHTML = ` <div class="flex items-center space-x-2"> <span class="text-[11px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600">S${idx + 1}</span> <p class="text-xs font-semibold text-slate-900">${s.en}</p> </div> <p class="text-xs text-slate-500 pl-6">${s.ko}</p> `; container.appendChild(item); }); document.getElementById('passage-badge').innerText = "분석 완료"; } function initScrambleData() { currentAssembled = []; currentCandidates = [...SAMPLE_CHUNKS].sort(() => Math.random() - 0.5); renderScrambleUI(); } function renderScrambleUI() { const track = document.getElementById('assembly-track'); const pool = document.getElementById('candidate-pool'); if (!track || !pool) return; track.innerHTML = ''; pool.innerHTML = ''; if (currentAssembled.length === 0) { track.innerHTML = '<span class="text-xs text-slate-400 py-2">아래 보관함에서 단어 청크를 터치하여 올바른 어순으로 배치하세요.</span>'; } else { currentAssembled.forEach((chunk, i) => { const btn = document.createElement('button'); const isError = chunk.isTrap; btn.className = `chunk-chip px-3 py-2 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition shadow-sm ${ isError ? 'bg-rose-600 text-white' : 'bg-slate-900 text-white hover:bg-slate-800' }`; btn.innerHTML = `<span>${i + 1}. ${chunk.text}</span> <span>✕</span>`; btn.onclick = () => returnChunkToPool(chunk); track.appendChild(btn); }); } currentCandidates.forEach(chunk => { const btn = document.createElement('button'); btn.className = "chunk-chip px-3 py-2 rounded-xl text-xs font-bold bg-indigo-50/80 text-indigo-950 border border-indigo-100 hover:bg-indigo-100 active:scale-95 transition shadow-sm cursor-pointer"; btn.innerText = chunk.text; btn.onclick = () => moveChunkToTrack(chunk); pool.appendChild(btn); }); } function moveChunkToTrack(chunk) { currentCandidates = currentCandidates.filter(c => c.id !== chunk.id); currentAssembled.push(chunk); if (chunk.isTrap) { document.getElementById('error-alert-banner').classList.remove('hidden'); document.getElementById('error-alert-msg').innerText = chunk.trapNote; document.getElementById('clinic-score-badge').className = "px-2 py-0.5 rounded text-xs font-bold bg-rose-50 text-rose-600"; document.getElementById('clinic-score-badge').innerText = "오답 감지"; } renderScrambleUI(); } function returnChunkToPool(chunk) { currentAssembled = currentAssembled.filter(c => c.id !== chunk.id); currentCandidates.push(chunk); if (!currentAssembled.some(c => c.isTrap)) { document.getElementById('error-alert-banner').classList.add('hidden'); document.getElementById('clinic-score-badge').className = "px-2 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-600"; document.getElementById('clinic-score-badge').innerText = "정상 진행"; } renderScrambleUI(); } function resetAssembly() { initScrambleData(); document.getElementById('error-alert-banner').classList.add('hidden'); document.getElementById('clinic-score-badge').className = "px-2 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-600"; document.getElementById('clinic-score-badge').innerText = "정상 진행"; } function shuffleChunks() { currentCandidates.sort(() => Math.random() - 0.5); renderScrambleUI(); } function verifyScrambleAnswer() { if (currentAssembled.length < 3) return alert('단어 청크를 먼저 조립해 주세요!'); const hasTrap = currentAssembled.some(c => c.isTrap); if (hasTrap) { alert('⚠️ 어순 또는 문법 오류가 포함되어 있습니다! 붉은색 오류 단어를 제거해 주세요.'); } else { alert('🎉 완벽합니다! 5형식 구문을 정확하게 완성했습니다. 다음 문장으로 넘어갑니다.'); } } function showScrambleHint() { alert('💡 힌트: 동사 make 뒤에는 [목적어] + [형용사 보어(vulnerable to)] 순서로 배열됩니다.'); } const QUIZ_DATA = [ { q: "위 지문의 논리적 흐름으로 보아, 글쓴이가 지적하는 인간 인지 휴리스틱의 가장 심각한 부작용은 무엇인가?", opts: [ "정보 처리 속도가 현저히 느려져 일상생활에 지장을 준다.", "단어의 난이도에 집착하여 복잡한 표현만을 선호하게 된다.", "처리하기 쉬운 정보를 곧바로 진실된 것으로 오인하여 비판적 검증을 생략한다.", "새로운 어휘를 학습할 때 기억의 왜곡이 지속적으로 발생한다." ], ans: 2, exp: "지문에서는 'When cognitive fluency is high, the brain mistakenly equates ease of processing with truthfulness, bypassing critical verification systems'라고 명시하여 처리의 용이성을 진실로 착각하는 점을 핵심 부작용으로 지적합니다." } ]; function loadSampleQuiz() { const q = QUIZ_DATA[0]; const qEl = document.getElementById('quiz-question'); if (qEl) qEl.innerText = q.q; const optsDiv = document.getElementById('quiz-options'); if (!optsDiv) return; optsDiv.innerHTML = ''; q.opts.forEach((opt, idx) => { const btn = document.createElement('button'); btn.className = "w-full text-left p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/30 text-xs md:text-sm font-medium transition flex items-start space-x-3 cursor-pointer"; btn.innerHTML = `<span class="w-5 h-5 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5">${idx + 1}</span><span>${opt}</span>`; btn.onclick = () => selectQuizAnswer(idx, q.ans, q.exp, btn); optsDiv.appendChild(btn); }); } function selectQuizAnswer(chosen, correct, exp, btnElement) { const opts = document.getElementById('quiz-options').children; for (let btn of opts) { btn.disabled = true; btn.className = "w-full text-left p-4 rounded-xl border border-slate-200 text-xs md:text-sm font-medium transition flex items-start space-x-3 opacity-60"; } const expDiv = document.getElementById('quiz-explanation'); expDiv.classList.remove('hidden'); if (chosen === correct) { btnElement.className = "w-full text-left p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-950 text-xs md:text-sm font-bold flex items-start space-x-3"; expDiv.innerHTML = `<p class="font-bold text-emerald-700 mb-1">🎉 정답입니다!</p><p>${exp}</p>`; } else { btnElement.className = "w-full text-left p-4 rounded-xl border-2 border-rose-500 bg-rose-50 text-rose-950 text-xs md:text-sm font-bold flex items-start space-x-3"; expDiv.innerHTML = `<p class="font-bold text-rose-700 mb-1">❌ 오답입니다!</p><p>${exp}</p>`; } } function nextQuizItem() { alert('축하합니다! 1회차 훈련이 완료되었습니다.'); } window.addEventListener('DOMContentLoaded', () => { checkSavedApiKey(); initScrambleData(); loadSampleQuiz(); }); </script> </body> </html>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ReadFlow Tablet Academy</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#4338ca">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- 헤더 -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md font-bold text-lg">📖</div>
+      <div>
+        <div class="flex items-center space-x-2">
+          <span class="font-extrabold text-xl tracking-tight text-indigo-950">ReadFlow</span>
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">TABLET ACADEMY</span>
+        </div>
+        <p class="text-[11px] text-slate-400 font-medium">수능특강·모의고사 구문분석 & 스크램블 훈련</p>
+      </div>
+    </div>
+
+    <!-- 상단 탭 -->
+    <nav class="flex items-center bg-slate-100 p-1 rounded-xl">
+      <button type="button" onclick="switchTab('passage')" id="tab-passage" class="px-4 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition">지문 분석실</button>
+      <button type="button" onclick="switchTab('scramble')" id="tab-scramble" class="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-900 transition">스크램블 훈련</button>
+      <button type="button" onclick="switchTab('quiz')" id="tab-quiz" class="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-900 transition">실전 퀴즈</button>
+    </nav>
+
+    <!-- API 설정 및 학생 정보 -->
+    <div class="flex items-center space-x-3">
+      <button type="button" onclick="openKeyModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-700 transition">
+        <span>🔑</span>
+        <span id="api-status-badge">API 키 설정</span>
+      </button>
+      <div class="flex items-center space-x-2 pl-2 border-l border-slate-200">
+        <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">고3</div>
+        <div class="text-left text-xs">
+          <p class="font-bold text-slate-800">김도현 학생</p>
+          <p class="text-[10px] text-slate-400">수능 정규 대비반</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- 본문 영역 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
+
+    <!-- [1] 지문 분석실 뷰 -->
+    <section id="view-passage" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="lg:col-span-5 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+            <h2 class="font-bold text-lg text-slate-800">영어 지문 입력</h2>
+          </div>
+          <button type="button" onclick="loadSamplePassage()" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition border border-indigo-200 cursor-pointer">
+            수능특강 샘플 불러오기
+          </button>
+        </div>
+        
+        <textarea id="passage-input" rows="9" placeholder="분석할 고교 영어 지문을 이곳에 입력하거나 위의 '수능특강 샘플 불러오기'를 누르세요..." class="w-full p-4 rounded-xl border border-slate-200 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none font-sans"></textarea>
+        
+        <button type="button" id="btn-analyze" onclick="handleAnalyzePassage()" class="mt-4 w-full py-3.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md flex items-center justify-center space-x-2 transition cursor-pointer">
+          <span>✨ Gemini AI 정밀 분석 시작</span>
+        </button>
+
+        <div id="analyze-loader" class="hidden mt-4 p-4 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center space-x-3 text-indigo-700 text-xs font-semibold">
+          <div class="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+          <span>AI가 지문의 구문과 핵심 요약을 분석 중입니다...</span>
+        </div>
+      </div>
+
+      <div class="lg:col-span-7 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col">
+        <h2 class="font-bold text-lg text-slate-800 mb-4 flex items-center justify-between">
+          <span>AI 지문 구조화 리포트</span>
+          <span id="passage-badge" class="text-xs px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-full font-semibold">준비 완료</span>
+        </h2>
+
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-5">
+          <p class="text-xs font-bold text-indigo-700 uppercase mb-1">Passage Summary (핵심 요약)</p>
+          <p id="summary-text" class="text-sm text-slate-700 leading-relaxed font-medium">
+            지문을 입력하고 분석 버튼을 누르면 AI가 요약과 논리 전개를 생성합니다.
+          </p>
+        </div>
+
+        <div class="flex-1 overflow-y-auto max-h-[460px] pr-2 space-y-3" id="sentences-container">
+          <div class="p-4 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 text-sm py-12">
+            지문을 입력하시면 문장별 구문 쪼개기와 스크램블 청크가 자동 표시됩니다.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- [2] 문장별 스크램블 훈련 뷰 -->
+    <section id="view-scramble" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="lg:col-span-8 space-y-5">
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between mb-3">
+            <span class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">Step 01 / 05</span>
+            <div class="text-xs font-mono font-bold text-slate-500">⏱️ 실시간 훈련</div>
+          </div>
+          <p class="text-base font-semibold text-slate-900 leading-relaxed">
+            "그러나, 이러한 정신적 지름길(휴리스틱)은 우리로 하여금 감추어진 잘못된 정보에 매우 취약하게 만든다."
+          </p>
+        </div>
+
+        <!-- 오답 경고 배너 -->
+        <div id="error-alert-banner" class="hidden bg-rose-50 border-2 border-rose-500 rounded-2xl p-4 text-rose-900 flex items-start space-x-3 transition">
+          <div class="text-xl">⚠️</div>
+          <div class="flex-1">
+            <h4 class="font-bold text-sm">어순 배열 오류가 감지되었습니다!</h4>
+            <p id="error-alert-msg" class="text-xs text-rose-700 mt-0.5">5형식 목적격 보어 자리에는 부사가 올 수 없습니다. 형용사 청크를 선택하세요.</p>
+          </div>
+          <button type="button" onclick="resetScramble()" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-rose-600 text-white hover:bg-rose-700">다시 조립</button>
+        </div>
+
+        <!-- 조립 트랙 -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold text-slate-600">현재 조립된 문장 청크 트랙</span>
+            <span class="text-xs text-slate-400">카드를 누르면 보관함으로 복귀합니다</span>
+          </div>
+          <div id="assembly-track" class="min-h-[76px] p-3 rounded-xl bg-slate-50 border-2 border-dashed border-slate-200 flex flex-wrap gap-2 items-center"></div>
+        </div>
+
+        <!-- 단어 후보 풀 -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold text-slate-700">터치하여 조립할 단어 청크 (Candidate Pool)</span>
+            <button type="button" onclick="shuffleChunks()" class="text-xs font-semibold text-indigo-600 hover:underline">🔀 단어 섞기</button>
+          </div>
+          <div id="candidate-pool" class="flex flex-wrap gap-2.5 pt-2"></div>
+        </div>
+
+        <div class="flex items-center justify-between pt-2">
+          <button type="button" onclick="resetScramble()" class="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition">처음부터 재배치</button>
+          <button type="button" onclick="verifyScramble()" class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md transition">정답 검증 & 다음 문장 ➔</button>
+        </div>
+      </div>
+
+      <div class="lg:col-span-4 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col space-y-4">
+        <h3 class="font-bold text-sm text-slate-800 pb-3 border-b border-slate-100">📊 실시간 구문 첨삭 클리닉</h3>
+        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs leading-relaxed">
+          <p class="font-bold text-indigo-900 mb-1">📘 수능 빈출 어법 포인트</p>
+          <p class="text-slate-600">동사 <code class="bg-indigo-100 px-1 py-0.5 rounded text-indigo-800 font-bold">make</code>는 5형식 문형에서 목적어의 상태를 설명하는 보어로 <span class="text-rose-600 font-bold">부사가 올 수 없으며</span> 형용사 보어만을 취합니다.</p>
+        </div>
+        <div class="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-xs text-emerald-950">
+          <p class="font-bold mb-1">✅ 완성 예시</p>
+          <p class="font-mono text-[11px] text-emerald-800">makes us <span class="font-bold underline">vulnerable to</span> subtle misinformation.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- [3] 실전 퀴즈 뷰 -->
+    <section id="view-quiz" class="hidden max-w-3xl mx-auto space-y-6">
+      <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-slate-200">
+        <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+          <div class="flex items-center space-x-2">
+            <span class="w-7 h-7 rounded-lg bg-indigo-600 text-white font-extrabold text-xs flex items-center justify-center">Q1</span>
+            <span class="font-bold text-sm text-slate-700">핵심 빈칸 추론 & 문맥 이해</span>
+          </div>
+          <span class="text-xs font-bold text-slate-400">문제 1 / 4</span>
+        </div>
+
+        <h3 class="text-base font-bold text-slate-900 leading-relaxed mb-6">
+          위 지문의 논리적 흐름으로 보아, 글쓴이가 지적하는 인간 인지 휴리스틱의 가장 심각한 부작용은 무엇인가?
+        </h3>
+
+        <div id="quiz-options" class="space-y-3"></div>
+        <div id="quiz-explanation" class="hidden mt-6 p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs leading-relaxed text-slate-700"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- API 키 모달 -->
+  <div id="key-modal" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+    <div class="bg-white max-w-md w-full rounded-2xl p-6 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-base text-slate-900">🔑 Gemini API 키 입력</h3>
+        <button type="button" onclick="closeKeyModal()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
+      </div>
+      <p class="text-xs text-slate-500 mb-4 leading-relaxed">
+        Google AI Studio에서 발급받으신 무료 키(AQ... 또는 AIzaSy...)를 입력해 주세요. 이 기기에만 안전하게 저장됩니다.
+      </p>
+      <input type="text" id="api-key-field" placeholder="API 키 붙여넣기" class="w-full p-3 rounded-xl border border-slate-200 text-sm font-mono mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+      <div class="flex justify-end space-x-2">
+        <button type="button" onclick="closeKeyModal()" class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100">닫기</button>
+        <button type="button" onclick="saveApiKeyDirect()" class="px-5 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 1. 샘플 지문 텍스트
+    const SAMPLE_TEXT = "However, this mental shortcut makes us exceptionally vulnerable to subtle misinformation disguised in simple words. When cognitive fluency is high, the human brain mistakenly equates ease of processing with truthfulness, bypassing critical verification systems. Consequently, learners accept assertions without interrogating their underlying premises.";
+
+    // 2. 수능특강 샘플 불러오기 (즉시 실행)
+    function loadSamplePassage() {
+      var textarea = document.getElementById('passage-input');
+      if (textarea) {
+        textarea.value = SAMPLE_TEXT;
+      }
+    }
+
+    // 3. 탭 전환
+    function switchTab(target) {
+      var tabs = ['passage', 'scramble', 'quiz'];
+      tabs.forEach(function(t) {
+        var v = document.getElementById('view-' + t);
+        var b = document.getElementById('tab-' + t);
+        if (v) v.classList.add('hidden');
+        if (b) {
+          b.className = "px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-900 transition";
+        }
+      });
+      var activeView = document.getElementById('view-' + target);
+      var activeBtn = document.getElementById('tab-' + target);
+      if (activeView) activeView.classList.remove('hidden');
+      if (activeBtn) {
+        activeBtn.className = "px-4 py-2 rounded-lg text-sm font-bold bg-white text-indigo-600 shadow-sm transition";
+      }
+    }
+
+    // 4. API 키 모달
+    function openKeyModal() {
+      var val = localStorage.getItem('gemini_key') || '';
+      document.getElementById('api-key-field').value = val;
+      document.getElementById('key-modal').classList.remove('hidden');
+    }
+    function closeKeyModal() {
+      document.getElementById('key-modal').classList.add('hidden');
+    }
+    function saveApiKeyDirect() {
+      var key = document.getElementById('api-key-field').value.trim();
+      if (key) {
+        localStorage.setItem('gemini_key', key);
+        alert('API 키가 저장되었습니다!');
+      } else {
+        localStorage.removeItem('gemini_key');
+      }
+      updateKeyBadge();
+      closeKeyModal();
+    }
+    function updateKeyBadge() {
+      var key = localStorage.getItem('gemini_key');
+      var badge = document.getElementById('api-status-badge');
+      if (badge) {
+        if (key) {
+          badge.innerText = "API 키 연동됨";
+          badge.className = "text-emerald-600 font-bold";
+        } else {
+          badge.innerText = "API 키 설정";
+          badge.className = "";
+        }
+      }
+    }
+
+    // 5. 지문 AI 분석
+    async function handleAnalyzePassage() {
+      var text = document.getElementById('passage-input').value.trim();
+      if (!text) {
+        alert('분석할 영어 지문을 먼저 입력하거나 [수능특강 샘플 불러오기]를 클릭하세요!');
+        return;
+      }
+
+      var apiKey = localStorage.getItem('gemini_key');
+      var loader = document.getElementById('analyze-loader');
+      var btn = document.getElementById('btn-analyze');
+
+      loader.classList.remove('hidden');
+      btn.disabled = true;
+
+      // API 키가 아직 없을 때 기본 샘플 결과 즉시 표시
+      if (!apiKey) {
+        setTimeout(function() {
+          renderAnalysis({
+            summary: "인지적 유창성(이해하기 쉬움)에 대한 뇌의 착각이 거짓 정보를 비판 없이 수용하게 만드는 심리적 위험성 분석",
+            sentences: [
+              { en: "However, this mental shortcut makes us exceptionally vulnerable to subtle misinformation disguised in simple words.", ko: "그러나 이러한 정신적 지름길은 단순한 단어로 위장된 미묘한 거짓 정보에 우리를 매우 취약하게 만든다." },
+              { en: "When cognitive fluency is high, the human brain mistakenly equates ease of processing with truthfulness, bypassing critical verification systems.", ko: "인지적 유창성이 높을 때, 인간의 뇌는 정보 처리의 용이성을 진실성과 잘못 동일시하여 비판적 검증 시스템을 우회한다." },
+              { en: "Consequently, learners accept assertions without interrogating their underlying premises.", ko: "결과적으로 학습자들은 그 이면의 기본 전제를 질문하지 않고 주장을 그대로 받아들인다." }
+            ]
+          });
+          loader.classList.add('hidden');
+          btn.disabled = false;
+        }, 600);
+        return;
+      }
+
+      // Gemini AI 실제 호출
+      try {
+        var url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+        var promptText = "수능 영어 지문을 분석해서 오직 JSON 형식(마크다운 코드블록 없이)으로만 답해줘.\n지문: " + text + "\n형식:\n{\"summary\":\"전체요약 (한글 2~3줄)\",\"sentences\":[{\"en\":\"영어문장\",\"ko\":\"직독직해\"}]}";
+
+        var response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+        });
+        var data = await response.json();
+        var raw = data.candidates[0].content.parts[0].text.replace(/```json|```/g, '').trim();
+        var parsed = JSON.parse(raw);
+        renderAnalysis(parsed);
+      } catch (e) {
+        console.error(e);
+        alert('AI 호출 중 오류가 발생했습니다. 키를 확인해 주세요. 기본 분석 결과로 표시합니다.');
+        renderAnalysis({
+          summary: "인지적 유창성(쉬운 처리)에 대한 뇌의 착각이 거짓 정보를 비판 없이 수용하게 만듦",
+          sentences: [
+            { en: "However, this mental shortcut makes us exceptionally vulnerable to subtle misinformation.", ko: "그러나 이러한 정신적 지름길은 우리를 거짓 정보에 매우 취약하게 만든다." }
+          ]
+        });
+      } finally {
+        loader.classList.add('hidden');
+        btn.disabled = false;
+      }
+    }
+
+    function renderAnalysis(data) {
+      document.getElementById('summary-text').innerText = data.summary;
+      var container = document.getElementById('sentences-container');
+      container.innerHTML = '';
+
+      data.sentences.forEach(function(s, idx) {
+        var card = document.createElement('div');
+        card.className = "p-3.5 rounded-xl border border-slate-100 hover:border-indigo-200 bg-white transition space-y-1.5";
+        card.innerHTML = '<div class="flex items-center space-x-2"><span class="text-[11px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600">S' + (idx+1) + '</span><p class="text-xs font-semibold text-slate-900">' + s.en + '</p></div><p class="text-xs text-slate-500 pl-6">' + s.ko + '</p>';
+        container.appendChild(card);
+      });
+      document.getElementById('passage-badge').innerText = "분석 완료";
+    }
+
+    // 6. 스크램블 인터랙션
+    var CHUNKS = [
+      { id: 1, text: "However,", isTrap: false },
+      { id: 2, text: "this mental shortcut", isTrap: false },
+      { id: 3, text: "makes us", isTrap: false },
+      { id: 4, text: "exceptionally vulnerable to", isTrap: false },
+      { id: 5, text: "subtle misinformation", isTrap: false },
+      { id: 6, text: "disguised in simple words.", isTrap: false },
+      { id: 7, text: "exceptionally vulnerably", isTrap: true, msg: "5형식 목적격 보어 자리에는 부사가 올 수 없습니다!" }
+    ];
+
+    var assembled = [];
+    var candidates = [];
+
+    function initScramble() {
+      assembled = [];
+      candidates = CHUNKS.slice().sort(function() { return Math.random() - 0.5; });
+      drawScramble();
+    }
+
+    function drawScramble() {
+      var track = document.getElementById('assembly-track');
+      var pool = document.getElementById('candidate-pool');
+      if (!track || !pool) return;
+      track.innerHTML = '';
+      pool.innerHTML = '';
+
+      if (assembled.length === 0) {
+        track.innerHTML = '<span class="text-xs text-slate-400 py-2">아래 보관함에서 단어 카드를 터치하여 조립하세요.</span>';
+      } else {
+        assembled.forEach(function(c, i) {
+          var btn = document.createElement('button');
+          btn.type = "button";
+          btn.className = c.isTrap ? "px-3 py-2 rounded-xl text-xs font-bold bg-rose-600 text-white shadow-sm" : "px-3 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white shadow-sm hover:bg-slate-800";
+          btn.innerHTML = (i + 1) + ". " + c.text + " ✕";
+          btn.onclick = function() { removeTrackChunk(c); };
+          track.appendChild(btn);
+        });
+      }
+
+      candidates.forEach(function(c) {
+        var btn = document.createElement('button');
+        btn.type = "button";
+        btn.className = "px-3 py-2 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-950 border border-indigo-100 hover:bg-indigo-100 transition shadow-sm cursor-pointer";
+        btn.innerText = c.text;
+        btn.onclick = function() { addTrackChunk(c); };
+        pool.appendChild(btn);
+      });
+    }
+
+    function addTrackChunk(chunk) {
+      candidates = candidates.filter(function(x) { return x.id !== chunk.id; });
+      assembled.push(chunk);
+      if (chunk.isTrap) {
+        document.getElementById('error-alert-banner').classList.remove('hidden');
+        document.getElementById('error-alert-msg').innerText = chunk.msg;
+      }
+      drawScramble();
+    }
+
+    function removeTrackChunk(chunk) {
+      assembled = assembled.filter(function(x) { return x.id !== chunk.id; });
+      candidates.push(chunk);
+      if (!assembled.some(function(x) { return x.isTrap; })) {
+        document.getElementById('error-alert-banner').classList.add('hidden');
+      }
+      drawScramble();
+    }
+
+    function resetScramble() {
+      document.getElementById('error-alert-banner').classList.add('hidden');
+      initScramble();
+    }
+
+    function shuffleChunks() {
+      candidates.sort(function() { return Math.random() - 0.5; });
+      drawScramble();
+    }
+
+    function verifyScramble() {
+      if (assembled.length < 3) {
+        alert('단어 카드를 먼저 조립해 주세요!');
+        return;
+      }
+      if (assembled.some(function(x) { return x.isTrap; })) {
+        alert('⚠️ 붉은색 오답 단어가 포함되어 있습니다. 단어를 클릭해 제거해 주세요.');
+      } else {
+        alert('🎉 정답입니다! 5형식 구문을 완벽하게 완성했습니다.');
+      }
+    }
+
+    // 7. 퀴즈
+    var QUIZ_ITEM = {
+      q: "위 지문의 논리적 흐름으로 보아, 글쓴이가 지적하는 인간 인지 휴리스틱의 가장 심각한 부작용은 무엇인가?",
+      opts: [
+        "정보 처리 속도가 현저히 느려져 일상생활에 지장을 준다.",
+        "단어의 난이도에 집착하여 복잡한 표현만을 선호하게 된다.",
+        "처리하기 쉬운 정보를 곧바로 진실된 것으로 오인하여 비판적 검증을 생략한다.",
+        "새로운 어휘를 학습할 때 기억의 왜곡이 지속적으로 발생한다."
+      ],
+      ans: 2,
+      exp: "지문에서 인지적 유창성이 높을 때 처리의 용이성을 진실성과 동일시하여 비판적 검증을 생략한다고 지적하고 있습니다."
+    };
+
+    function initQuiz() {
+      var optsDiv = document.getElementById('quiz-options');
+      if (!optsDiv) return;
+      optsDiv.innerHTML = '';
+
+      QUIZ_ITEM.opts.forEach(function(opt, idx) {
+        var btn = document.createElement('button');
+        btn.type = "button";
+        btn.className = "w-full text-left p-4 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/40 text-xs md:text-sm font-medium transition flex items-start space-x-3 cursor-pointer";
+        btn.innerHTML = '<span class="w-5 h-5 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5">' + (idx + 1) + '</span><span>' + opt + '</span>';
+        btn.onclick = function() { checkQuiz(idx, btn); };
+        optsDiv.appendChild(btn);
+      });
+    }
+
+    function checkQuiz(choice, btnEl) {
+      var exp = document.getElementById('quiz-explanation');
+      exp.classList.remove('hidden');
+
+      if (choice === QUIZ_ITEM.ans) {
+        btnEl.className = "w-full text-left p-4 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-emerald-950 text-xs md:text-sm font-bold flex items-start space-x-3";
+        exp.innerHTML = "<p class='font-bold text-emerald-700 mb-1'>🎉 정답입니다!</p><p>" + QUIZ_ITEM.exp + "</p>";
+      } else {
+        btnEl.className = "w-full text-left p-4 rounded-xl border-2 border-rose-500 bg-rose-50 text-rose-950 text-xs md:text-sm font-bold flex items-start space-x-3";
+        exp.innerHTML = "<p class='font-bold text-rose-700 mb-1'>❌ 오답입니다!</p><p>" + QUIZ_ITEM.exp + "</p>";
+      }
+    }
+
+    // 브라우저 로딩 즉시 초기화
+    window.onload = function() {
+      updateKeyBadge();
+      initScramble();
+      initQuiz();
+    };
+  </script>
+</body>
+</html>
